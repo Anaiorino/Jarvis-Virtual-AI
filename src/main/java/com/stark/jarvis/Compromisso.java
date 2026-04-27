@@ -12,7 +12,7 @@ public class Compromisso {
     private Long id;
     private String descricao;
 
-    // Gerando manualmente para evitar erros de biblioteca
+    // gerando manualmente
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
     public String getDescricao() { return descricao; }

@@ -26,7 +26,7 @@ public class JarvisActions {
         
         Compromisso novo = new Compromisso();
         novo.setDescricao(texto);
-        repository.save(novo); // Salva no arquivo jarvisdb
+        repository.save(novo); // salv no arquivo jarvisdb
         
         return "Com certeza, senhor. Registrei '" + texto + "' no banco de dados.";
     }
