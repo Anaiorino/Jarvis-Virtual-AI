@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>JARVIS - Interface de Comando</title>
+    <style>
+        body {
+            background-color: #000;
+            color: #fff;
+            font-family: 'Courier New', Courier, monospace;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            overflow: hidden;
+        }
+
+        .jarvis-core {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            max-width: 800px;
+            z-index: 2;
+        }
+
+        .hologram-display {
+            width: 420px;
+            height: auto;
+            margin-bottom: 20px;
+            opacity: 0.9;
+            animation: flicker 4s infinite alternate;
+        }
+
+        .main-title {
+            font-size: 3.5rem;
+            letter-spacing: 15px;
+            margin: 0 0 10px 0;
+            text-transform: uppercase;
+            text-shadow: 0 0 15px rgba(0, 212, 255, 1);
+            color: #00d4ff;
+        }
+
+        .status-text {
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 1.1rem;
+            letter-spacing: 1px;
+            margin-bottom: 30px;
+            min-height: 1.4em;
+        }
+
+        .control-button {
+            background: #5c7075;
+            border: none;
+            color: #fff;
+            padding: 18px 0;
+            width: 500px;
+            border-radius: 50px;
+            cursor: pointer;
+            font-size: 1.1rem;
+            letter-spacing: 2px;
+            font-family: inherit;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+            transition: all 0.3s;
+            margin-bottom: 15px;
+        }
+
+        .control-button.gravando {
+            background: rgba(0, 212, 255, 0.4);
+            box-shadow: 0 0 20px rgba(0, 212, 255, 0.5);
+        }
+
+        #inputComando {
+            background: rgba(0, 212, 255, 0.05);
+            border: 1px solid rgba(0, 212, 255, 0.3);
+            border-radius: 25px;
+            color: #fff;
+            padding: 12px 25px;
+            width: 450px;
+            outline: none;
+            font-family: inherit;
+            text-align: center;
+            transition: all 0.3s;
+            border-bottom: 2px solid #00d4ff;
+        }
+
+        /* OSCILOSCÓPIO LINEAR ABAIXO DO CHAT */
+        #canvasOnda {
+            width: 450px;
+            height: 100px;
+            margin-top: 10px;
+            opacity: 0;
+            transition: opacity 0.5s;
+        }
+
+        #btnEnviar {
+            background: #00d4ff;
+            color: #000;
+            border: none;
+            padding: 10px 30px;
+            border-radius: 20px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-bottom: 20px;
+            display: none;
+            box-shadow: 0 0 10px #00d4ff;
+            font-family: inherit;
+            text-transform: uppercase;
+        }
+
+        @keyframes flicker {
+            0% { opacity: 0.8; }
+            100% { opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+    <div class="jarvis-core">
+        <img src="jarvis-hologram.gif" alt="JARVIS Hologram" class="hologram-display" id="imgHologram">
+        
+        <h1 class="main-title">JARVIS</h1>
+        <p class="status-text" id="statusOutput">Sistemas online. Aguardando ordens, senhor.</p>
+        
+        <button id="btnEnviar" onclick="forcarEnvio()">⚡ SEND COMMAND</button>
+
+        <button class="control-button" id="btnMicrofone" onclick="alternarEscuta()">
+            <span class="mic-icon">🎤</span>
+            <span id="btnText">Clique aqui para falar</span>
+        </button>
+
+        <input type="text" id="inputComando" placeholder="... ou digite aqui ..." onkeypress="verificarEnter(event)">
+        
+        <canvas id="canvasOnda"></canvas>
+    </div>
+
+    <script>
+        const statusOutput = document.getElementById('statusOutput');
+        const inputComando = document.getElementById('inputComando');
+        const btnText = document.getElementById('btnText');
+        const btnMic = document.getElementById('btnMicrofone');
+        const btnEnviar = document.getElementById('btnEnviar');
+        const canvas = document.getElementById('canvasOnda');
+        const ctx = canvas.getContext('2d');
+        
+        let estaGravando = false;
+        let ultimoTextoReconhecido = "";
+        const somBip = new Audio('bip.mp3'); 
+
+        let audioCtx, analyser, dataArray, source;
+
+        function inicializarAudioVisualizer() {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            analyser = audioCtx.createAnalyser();
+            navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
+                source = audioCtx.createMediaStreamSource(stream);
+                source.connect(analyser);
+                analyser.fftSize = 512;
+                const bufferLength = analyser.frequencyBinCount;
+                dataArray = new Uint8Array(bufferLength);
+                desenharOndaLinear();
+            });
+        }
+
+        function desenharOndaLinear() {
+            requestAnimationFrame(desenharOndaLinear);
+            analyser.getByteTimeDomainData(dataArray); // Usamos TimeDomain para a linha senoidal
+            
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            canvas.width = 450;
+            canvas.height = 100;
+
+            ctx.lineWidth = 2;
+            ctx.strokeStyle = '#00d4ff';
+            ctx.shadowBlur = 10;
+            ctx.shadowColor = '#00d4ff';
+
+            ctx.beginPath();
+
+            const sliceWidth = canvas.width * 1.0 / dataArray.length;
+            let x = 0;
+
+            for (let i = 0; i < dataArray.length; i++) {
+                const v = dataArray[i] / 128.0;
+                const y = v * canvas.height / 2;
+
+                if (i === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+
+                x += sliceWidth;
+            }
+
+            ctx.lineTo(canvas.width, canvas.height / 2);
+            ctx.stroke();
+        }
+
+        function falar(texto) {
+            window.speechSynthesis.cancel();
+            const mensagem = new SpeechSynthesisUtterance(texto);
+            const vozes = window.speechSynthesis.getVoices();
+            const vozStark = vozes.find(v => v.name.includes('Daniel') || v.name.includes('Google português do Brasil')) || vozes[0];
+            mensagem.voice = vozStark;
+            mensagem.lang = 'pt-BR';
+            mensagem.pitch = 0.85; 
+            window.speechSynthesis.speak(mensagem);
+        }
+
+        async function processarComando(comando) {
+            if(!comando) return;
+            statusOutput.innerHTML = "processing...";
+            btnEnviar.style.display = "none"; 
+            try {
+                const resposta = await fetch(`/jarvis/chat?comando=${encodeURIComponent(comando)}`);
+                const texto = await resposta.text();
+                statusOutput.innerHTML = `<b>Jarvis:</b> ${texto}`;
+                falar(texto);
+            } catch (e) { statusOutput.innerHTML = "offline."; }
+        }
+
+        function forcarEnvio() {
+            if(ultimoTextoReconhecido) {
+                estaGravando = false;
+                recognition.stop();
+                processarComando(ultimoTextoReconhecido);
+            }
+        }
+
+        function verificarEnter(e) {
+            if (e.key === 'Enter') {
+                processarComando(inputComando.value);
+                inputComando.value = '';
+            }
+        }
+
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        const recognition = new SpeechRecognition();
+        recognition.lang = 'pt-BR';
+        recognition.continuous = true;
+        recognition.interimResults = true;
+
+        function alternarEscuta() {
+            if (!audioCtx) inicializarAudioVisualizer();
+            if (estaGravando) {
+                estaGravando = false;
+                recognition.stop();
+                canvas.style.opacity = "0";
+                btnEnviar.style.display = "none";
+            } else {
+                somBip.play().catch(e => {});
+                estaGravando = true;
+                ultimoTextoReconhecido = "";
+                recognition.start();
+                canvas.style.opacity = "1";
+            }
+        }
+
+        recognition.onstart = () => {
+            btnText.innerHTML = "STOP MONITORING";
+            btnMic.classList.add('gravando');
+            statusOutput.innerHTML = "listening...";
+        };
+
+        recognition.onend = () => {
+            if (estaGravando) recognition.start();
+            else {
+                btnText.innerHTML = "Click here to speak";
+                btnMic.classList.remove('gravando');
+                btnEnviar.style.display = "none";
+            }
+        };
+
+        recognition.onresult = (event) => {
+            let textoIntermediario = "";
+            for (let i = event.resultIndex; i < event.results.length; ++i) {
+                textoIntermediario += event.results[i][0].transcript;
+            }
+            ultimoTextoReconhecido = textoIntermediario.trim();
+            statusOutput.innerHTML = `<i>"${ultimoTextoReconhecido}"</i>`;
+            if(ultimoTextoReconhecido.length > 0) btnEnviar.style.display = "block";
+        };
+
+        window.speechSynthesis.onvoiceschanged = () => window.speechSynthesis.getVoices();
+    </script>
+</body>
+</html>
