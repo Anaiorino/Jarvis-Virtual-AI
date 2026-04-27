@@ -7,6 +7,10 @@
 Uma interface de assistente virtual, inspirada no sistema **JARVIS** dos filmes do Homen de ferro.
 
 ---
+⚠️ Status do Desenvolvimento
+O sistema de reconhecimento de voz está em fase de implementação. Atualmente, o programa identifica o microfone, mas o processamento de áudio para transcrição de texto ainda está em desenvolvimento.
+
+Após a conclusão, o módulo contará com os seguintes requisitos:
 
 ## 🛠️ Funcionalidades Principais
 
