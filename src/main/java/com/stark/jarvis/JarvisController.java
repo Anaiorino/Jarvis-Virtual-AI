@@ -8,7 +8,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 public class JarvisController {
 
-    private final OllamaChatClient chatModel; // Alterado para OllamaChatClient
+    private final OllamaChatClient chatModel;
     private final JarvisActions jarvisActions;
 
     public JarvisController(OllamaChatClient chatModel, JarvisActions jarvisActions) {
